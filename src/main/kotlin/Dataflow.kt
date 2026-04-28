@@ -1,3 +1,8 @@
+import java.io.File
+import org.antlr.v4.runtime.CharStreams
+import org.antlr.v4.runtime.CommonTokenStream
+import prettyPrintAst // Import prettyPrintAst from Main.kt if not already available
+
 interface Lattice<T> {
     fun bottom(): T
     fun join(a: T, b: T): T
@@ -222,11 +227,17 @@ fun Expr.usedVars(): Set<String> = when (this) {
     is ParenExpr -> expr.usedVars()
 }
 
-fun CFG.dumpToDot(filename: String) {
+fun CFG.dumpToDot(filename: String, stmts: List<Statement>? = null) {
     val sb = StringBuilder()
     sb.appendLine("digraph CFG {")
     for (node in nodes) {
-        sb.appendLine("  ${node.index} [label=\"${node.index}\"];")
+        val label = if (stmts != null && node.index < stmts.size) {
+            val stmtStr = prettyPrintAst(stmts[node.index]).replace("\"", "\\\"")
+            "${node.index}: $stmtStr"
+        } else {
+            node.index.toString()
+        }
+        sb.appendLine("  ${node.index} [label=\"$label\"];")
         for (succ in node.succs) {
             sb.appendLine("  ${node.index} -> $succ;")
         }
@@ -240,5 +251,5 @@ fun Program.dumpCfgToDot(filename: String) {
     val cfg = CFG(statements.indices.map { idx ->
         CFG.CFGNode(idx, if (idx == 0) listOf() else listOf(idx - 1), if (idx == statements.size - 1) listOf() else listOf(idx + 1))
     })
-    cfg.dumpToDot(filename)
+    cfg.dumpToDot(filename, statements)
 }

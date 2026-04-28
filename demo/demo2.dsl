@@ -1,22 +1,20 @@
-// Demo 2: More complex VecDSL program with loop and branching
-
-a = [1, 2, 3];
-b = [4, 5, 6];
-c = [0, 0, 0];
-d = [0, 0, 1];
-c = b+d;
-i = 0;
+a = [1, 2, 3]
+b = [4, 5, 6]
+c = [0, 0, 0]
+d = [0, 0, 1]
+c = b+d
+i = 0
 
 while (i < 3) {
-    c = c + b;
-    i = i + 1;
+    c = c + b
+    i = i + 1
 }
 
 if (a[0] > 0) {
-    d = c;
+    d = c
 } else {
-    d = a;
+    d = a
 }
 
-print(c);
-print(d);
+print(c)
+print(d)
