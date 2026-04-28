@@ -43,7 +43,13 @@ fun prettyPrintAst(node: TensorAstNode, indent: String = ""): String = when (nod
     is IdRef -> node.name
     is TensorLiteral -> node.elements.joinToString(prefix = "[", postfix = "]", separator = ", ") { prettyPrintAst(it) }
     is BinaryOp -> "${prettyPrintAst(node.left)} ${prettyPrintOp(node.op)} ${prettyPrintAst(node.right)}"
-    is UnaryOp -> "-${prettyPrintAst(node.expr)}"
+    is UnaryOp -> when (node.op) {
+        is Op.Minus -> "-${prettyPrintAst(node.expr)}"
+        is Op.Transpose -> "tpos ${prettyPrintAst(node.expr)}"
+        is Op.Length -> "len ${prettyPrintAst(node.expr)}"
+        is Op.Dim -> "dim ${prettyPrintAst(node.expr)}"
+        else -> error("Unknown unary op: ${node.op}")
+    }
     is ParenExpr -> "(${prettyPrintAst(node.expr)})"
     is Condition -> "${prettyPrintAst(node.left)} ${prettyPrintCompOp(node.op)} ${prettyPrintAst(node.right)}"
     else -> error("Unknown AST node type: ${node::class.simpleName}")
@@ -55,6 +61,9 @@ fun prettyPrintOp(op: Op): String = when (op) {
     is Op.Times -> "*"
     is Op.Div -> "/"
     is Op.TensorProd -> "#"
+    is Op.Transpose -> "tpos"
+    is Op.Length -> "len"
+    is Op.Dim -> "dim"
 }
 
 fun prettyPrintCompOp(op: CompOp): String = when (op) {

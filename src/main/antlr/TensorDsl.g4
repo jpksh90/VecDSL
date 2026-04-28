@@ -1,7 +1,5 @@
 grammar TensorDsl;
 
-options { package=dk.sdu; }
-
 // ----------------------
 // Parser rules
 // ----------------------
@@ -71,10 +69,17 @@ multiplication
 
 unary
     : '-' unary
-    | primary
-    | primary T_TRANSPOSE
-    | LENGTH '(' primary ')'
-    | DIM '(' primary ')'
+    | postfix
+    ;
+
+postfix
+    : primary ('.' postfixOp)*
+    ;
+
+postfixOp
+    : 'tpos'
+    | 'len'
+    | 'dim'
     ;
 
 primary
@@ -112,10 +117,7 @@ NUMBER
 
 TENSOR_OP : '#';
 
-T_TRANSPOSE : 'tpos';
 
-LENGTH : 'len';
-DIM : 'dim';
 
 WS
     : [ \t\r\n]+ -> skip

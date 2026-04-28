@@ -78,15 +78,17 @@ fun evalConstExpr(expr: Expr, env: Map<String, ConstVec>): ConstVec = when (expr
                 Op.Times -> ConstVec.Const(lv.zip(rv) { a, b -> a * b })
                 Op.Div -> ConstVec.Const(lv.zip(rv) { a, b -> a / b })
                 Op.TensorProd -> ConstVec.Const(lv.zip(rv) { a, b -> a * b })
+                else -> ConstVec.Top
             }
         } else ConstVec.Top
     }
     is UnaryOp -> {
         val v = evalConstExpr(expr.expr, env)
-        if (v is ConstVec.Const) when (expr.op) {
-            Op.Minus -> ConstVec.Const(v.values.map { -it })
+        when (expr.op) {
+            Op.Minus -> if (v is ConstVec.Const) ConstVec.Const(v.values.map { -it }) else ConstVec.Top
+            Op.Transpose, Op.Length, Op.Dim -> ConstVec.Top
             else -> ConstVec.Top
-        } else ConstVec.Top
+        }
     }
     is ParenExpr -> evalConstExpr(expr.expr, env)
 }
@@ -166,18 +168,18 @@ fun Expr.rewriteWithConstants(env: Map<String, ConstVec>): Expr = when (this) {
                 Op.Times -> lVal * rVal
                 Op.Div -> lVal / rVal
                 Op.TensorProd -> lVal * rVal
+                else -> lVal
             }
         ) else BinaryOp(leftR, op, rightR)
     }
     is UnaryOp -> {
         val exprR = expr.rewriteWithConstants(env)
         val v = (exprR as? NumberLiteral)?.value
-        if (v != null) NumberLiteral(
-            when (op) {
-                Op.Minus -> -v
-                else -> v
-            }
-        ) else UnaryOp(op, exprR)
+        when (op) {
+            Op.Minus -> if (v != null) NumberLiteral(-v) else UnaryOp(op, exprR)
+            Op.Transpose, Op.Length, Op.Dim -> UnaryOp(op, exprR)
+            else -> UnaryOp(op, exprR)
+        }
     }
     is ParenExpr -> ParenExpr(expr.rewriteWithConstants(env))
 }
@@ -220,4 +222,23 @@ fun Expr.usedVars(): Set<String> = when (this) {
     is ParenExpr -> expr.usedVars()
 }
 
+fun CFG.dumpToDot(filename: String) {
+    val sb = StringBuilder()
+    sb.appendLine("digraph CFG {")
+    for (node in nodes) {
+        sb.appendLine("  ${node.index} [label=\"${node.index}\"];")
+        for (succ in node.succs) {
+            sb.appendLine("  ${node.index} -> $succ;")
+        }
+    }
+    sb.appendLine("}")
+    java.io.File(filename).writeText(sb.toString())
+}
 
+fun Program.dumpCfgToDot(filename: String) {
+    // Build a trivial linear CFG: one node per statement
+    val cfg = CFG(statements.indices.map { idx ->
+        CFG.CFGNode(idx, if (idx == 0) listOf() else listOf(idx - 1), if (idx == statements.size - 1) listOf() else listOf(idx + 1))
+    })
+    cfg.dumpToDot(filename)
+}

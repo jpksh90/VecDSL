@@ -9,16 +9,50 @@ object TensorAstBuilder {
     }
 
     private fun fromStatement(ctx: TensorDslParser.StatementContext): Statement = when {
-        ctx.assignment() != null -> fromAssignment(ctx.assignment())
-        ctx.printStmt() != null -> fromPrintStmt(ctx.printStmt())
-        ctx.ifStmt() != null -> fromIfStmt(ctx.ifStmt())
-        ctx.whileStmt() != null -> fromWhileStmt(ctx.whileStmt())
-        else -> error("Unknown statement: ${ctx.text}")
+        ctx.assignment() != null -> try {
+            fromAssignment(ctx.assignment())
+        } catch (e: Exception) {
+            val line = ctx.start.line
+            val col = ctx.start.charPositionInLine
+            error("[Line $line, Col $col] ${e.message}")
+        }
+        ctx.printStmt() != null -> try {
+            fromPrintStmt(ctx.printStmt())
+        } catch (e: Exception) {
+            val line = ctx.start.line
+            val col = ctx.start.charPositionInLine
+            error("[Line $line, Col $col] ${e.message}")
+        }
+        ctx.ifStmt() != null -> try {
+            fromIfStmt(ctx.ifStmt())
+        } catch (e: Exception) {
+            val line = ctx.start.line
+            val col = ctx.start.charPositionInLine
+            error("[Line $line, Col $col] ${e.message}")
+        }
+        ctx.whileStmt() != null -> try {
+            fromWhileStmt(ctx.whileStmt())
+        } catch (e: Exception) {
+            val line = ctx.start.line
+            val col = ctx.start.charPositionInLine
+            error("[Line $line, Col $col] ${e.message}")
+        }
+        else -> {
+            val line = ctx.start.line
+            val col = ctx.start.charPositionInLine
+            error("[Line $line, Col $col] Unknown statement: ${ctx.text}")
+        }
     }
 
     private fun fromAssignment(ctx: TensorDslParser.AssignmentContext): Assignment {
         val id = ctx.ID().text
-        val expr = fromExpr(ctx.expr())
+        val exprCtx = ctx.expr()
+        if (exprCtx == null) {
+            val line = ctx.start.line
+            val col = ctx.start.charPositionInLine
+            error("[Line $line, Col $col] Assignment to '$id' is missing an expression: ${ctx.text}")
+        }
+        val expr = fromExpr(exprCtx)
         return Assignment(id, expr)
     }
 
@@ -75,11 +109,21 @@ object TensorAstBuilder {
 
     private fun fromUnary(ctx: TensorDslParser.UnaryContext): Expr = when {
         ctx.getChild(0).text == "-" -> UnaryOp(Op.Minus, fromUnary(ctx.unary()))
-        ctx.primary() != null && ctx.T_TRANSPOSE() != null -> UnaryOp(Op.Transpose, fromPrimary(ctx.primary()))
-        ctx.LENGTH() != null -> UnaryOp(Op.Length, fromPrimary(ctx.primary()))
-        ctx.DIM() != null -> UnaryOp(Op.Dim, fromPrimary(ctx.primary()))
-        ctx.primary() != null -> fromPrimary(ctx.primary())
+        ctx.postfix() != null -> fromPostfix(ctx.postfix())
         else -> error("Unknown unary: ${ctx.text}")
+    }
+
+    private fun fromPostfix(ctx: TensorDslParser.PostfixContext): Expr {
+        var expr = fromPrimary(ctx.primary())
+        for (opCtx in ctx.postfixOp()) {
+            expr = when (opCtx.text) {
+                "tpos" -> UnaryOp(Op.Transpose, expr)
+                "len" -> UnaryOp(Op.Length, expr)
+                "dim" -> UnaryOp(Op.Dim, expr)
+                else -> error("Unknown postfix op: ${opCtx.text}")
+            }
+        }
+        return expr
     }
 
     private fun fromPrimary(ctx: TensorDslParser.PrimaryContext): Expr = when {

@@ -60,12 +60,9 @@ tasks.test {
 }
 
 application {
-    mainClass.set("dk.sdu.MainKt")
+    mainClass.set("MainKt")
 }
 
-// Native/CPP target for Armadillo library
-// This block adds a custom Gradle task to build C++ code using Armadillo if needed
-// and provides a configuration for native integration if required by the project.
 
 val armadilloHome = System.getenv("ARMADILLO_HOME") ?: "/usr/local"
 
