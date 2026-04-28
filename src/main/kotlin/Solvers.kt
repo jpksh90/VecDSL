@@ -1,10 +1,3 @@
-package dk.sdu
-
-import CFG
-import Lattice
-import Program
-import definedVars
-
 // Abstract powerset lattice for Gen-Kill framework
 data class PowerSetLattice<T>(val universe: Set<T>) : Lattice<Set<T>> {
     override fun bottom(): Set<T> = emptySet()

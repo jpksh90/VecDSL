@@ -1,24 +1,7 @@
-package dk.sdu
-
-import TensorAstNode
-import Program
-import Assignment
-import PrintStmt
-import NumberLiteral
-import IdRef
-import TensorLiteral
-import BinaryOp
-import UnaryOp
-import ParenExpr
-import Op
-import TensorDslLexer
-import TensorDslParser
 import org.antlr.v4.runtime.CharStreams
 import org.antlr.v4.runtime.CommonTokenStream
 import java.io.File
 import java.nio.file.Paths
-import CompOp
-import Condition
 
 fun main(args: Array<String>) {
     if (args.isEmpty()) {

@@ -1,23 +1,3 @@
-package dk.sdu
-
-import Assignment
-import Expr
-import PrintStmt
-import Program
-import Statement
-import TensorLiteral
-import BinaryOp
-import NumberLiteral
-import UnaryOp
-import IdRef
-import IfStmt
-import ParenExpr
-import Op
-import TensorAstNode
-import WhileStmt
-import Condition
-import CompOp
-
 object TensorAstBuilder {
     fun fromProgram(ctx: TensorDslParser.ProgramContext): Program? {
         return fromProgramChecked(ctx)
@@ -180,7 +160,35 @@ object TensorCppArmadilloGenerator {
         is Program -> node.statements.joinToString("") { generateStatements(it, indent) }
         is Assignment -> "$indent auto ${node.id} = ${generateExpr(node.expr)};\n"
         is PrintStmt -> "$indent cout << ${generateExpr(node.expr)} << endl;\n"
+        is IfStmt -> buildString {
+            append("$indent if (" + generateCondition(node.cond) + ") {\n")
+            append(node.thenBranch.joinToString("") { generateStatements(it, indent + "    ") })
+            append("$indent}")
+            if (node.elseBranch != null) {
+                append(" else {\n")
+                append(node.elseBranch.joinToString("") { generateStatements(it, indent + "    ") })
+                append("$indent}")
+            }
+            append("\n")
+        }
+        is WhileStmt -> buildString {
+            append("$indent while (" + generateCondition(node.cond) + ") {\n")
+            append(node.body.joinToString("") { generateStatements(it, indent + "    ") })
+            append("$indent}\n")
+        }
         else -> ""
+    }
+
+    private fun generateCondition(cond: Condition): String =
+        "(" + generateExpr(cond.left) + " " + compOpToCpp(cond.op) + " " + generateExpr(cond.right) + ")"
+
+    private fun compOpToCpp(op: CompOp): String = when (op) {
+        is CompOp.Eq -> "=="
+        is CompOp.Neq -> "!="
+        is CompOp.Lt -> "<"
+        is CompOp.Le -> "<="
+        is CompOp.Gt -> ">"
+        is CompOp.Ge -> ">="
     }
 
     private fun generateExpr(expr: Expr): String = when (expr) {
@@ -204,4 +212,40 @@ object TensorCppArmadilloGenerator {
         is UnaryOp -> "-(${generateExpr(expr.expr)})"
         is ParenExpr -> "(${generateExpr(expr.expr)})"
     }
+}
+
+sealed class TensorAstNode
+
+class Program(val statements: List<Statement>) : TensorAstNode()
+
+sealed class Statement : TensorAstNode()
+class Assignment(val id: String, val expr: Expr) : Statement()
+class PrintStmt(val expr: Expr) : Statement()
+class IfStmt(val cond: Condition, val thenBranch: List<Statement>, val elseBranch: List<Statement>?) : Statement()
+class WhileStmt(val cond: Condition, val body: List<Statement>) : Statement()
+
+class Condition(val left: Expr, val op: CompOp, val right: Expr) : TensorAstNode()
+sealed class CompOp : TensorAstNode() {
+    object Eq : CompOp()
+    object Neq : CompOp()
+    object Lt : CompOp()
+    object Le : CompOp()
+    object Gt : CompOp()
+    object Ge : CompOp()
+}
+
+sealed class Expr : TensorAstNode()
+class NumberLiteral(val value: Double) : Expr()
+class IdRef(val name: String) : Expr()
+class TensorLiteral(val elements: List<Expr>) : Expr()
+class BinaryOp(val left: Expr, val op: Op, val right: Expr) : Expr()
+class UnaryOp(val op: Op, val expr: Expr) : Expr()
+class ParenExpr(val expr: Expr) : Expr()
+
+sealed class Op {
+    object Plus : Op()
+    object Minus : Op()
+    object Times : Op()
+    object Div : Op()
+    object TensorProd : Op()
 }
