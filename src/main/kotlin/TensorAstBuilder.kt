@@ -1,14 +1,38 @@
 package dk.sdu
 
+import Assignment
+import Expr
+import PrintStmt
+import Program
+import Statement
+import TensorLiteral
+import BinaryOp
+import NumberLiteral
+import UnaryOp
+import IdRef
+import IfStmt
+import ParenExpr
+import Op
+import TensorAstNode
+import WhileStmt
+import Condition
+import CompOp
+
 object TensorAstBuilder {
-    fun fromProgram(ctx: TensorDslParser.ProgramContext): Program {
-        val statements = ctx.statement().map { fromStatement(it) }
-        return Program(statements)
+    fun fromProgram(ctx: TensorDslParser.ProgramContext): Program? {
+        return fromProgramChecked(ctx)
+    }
+
+    fun fromProgramChecked(ctx: TensorDslParser.ProgramContext): Program? {
+        val ast = Program(ctx.statement().map { fromStatement(it) })
+        return checkVariableDeclarations(ast)
     }
 
     private fun fromStatement(ctx: TensorDslParser.StatementContext): Statement = when {
         ctx.assignment() != null -> fromAssignment(ctx.assignment())
         ctx.printStmt() != null -> fromPrintStmt(ctx.printStmt())
+        ctx.ifStmt() != null -> fromIfStmt(ctx.ifStmt())
+        ctx.whileStmt() != null -> fromWhileStmt(ctx.whileStmt())
         else -> error("Unknown statement: ${ctx.text}")
     }
 
@@ -86,6 +110,61 @@ object TensorAstBuilder {
     private fun fromTensor(ctx: TensorDslParser.TensorContext): TensorLiteral {
         val elements = ctx.elements()?.expr()?.map { fromExpr(it) } ?: emptyList()
         return TensorLiteral(elements)
+    }
+
+    private fun fromIfStmt(ctx: TensorDslParser.IfStmtContext): IfStmt {
+        val cond = fromCondition(ctx.condition())
+        val elseIdx = ctx.children.indexOfFirst { it.text == "else" }
+        val stmts = ctx.statement()
+        val thenBranch = if (elseIdx == -1) stmts.map { fromStatement(it) } else stmts.take(elseIdx).map { fromStatement(it) }
+        val elseBranch = if (elseIdx == -1) null else stmts.drop(elseIdx).map { fromStatement(it) }
+        return IfStmt(cond, thenBranch, elseBranch)
+    }
+
+    private fun fromWhileStmt(ctx: TensorDslParser.WhileStmtContext): WhileStmt {
+        val cond = fromCondition(ctx.condition())
+        val body = ctx.statement().map { fromStatement(it) }
+        return WhileStmt(cond, body)
+    }
+
+    private fun fromCondition(ctx: TensorDslParser.ConditionContext): Condition {
+        val left = fromExpr(ctx.expr(0))
+        val op = fromCompOp(ctx.compOp())
+        val right = fromExpr(ctx.expr(1))
+        return Condition(left, op, right)
+    }
+
+    private fun fromCompOp(ctx: TensorDslParser.CompOpContext): CompOp = when (ctx.text) {
+        "==" -> CompOp.Eq
+        "!=" -> CompOp.Neq
+        "<" -> CompOp.Lt
+        "<=" -> CompOp.Le
+        ">" -> CompOp.Gt
+        ">=" -> CompOp.Ge
+        else -> error("Unknown comparison operator: ${ctx.text}")
+    }
+
+    fun checkVariableDeclarations(ast: Program): Program? {
+        val declared = mutableSetOf<String>()
+        fun checkExpr(expr: Expr): Boolean = when (expr) {
+            is NumberLiteral -> true
+            is IdRef -> declared.contains(expr.name)
+            is TensorLiteral -> expr.elements.all { checkExpr(it) }
+            is BinaryOp -> checkExpr(expr.left) && checkExpr(expr.right)
+            is UnaryOp -> checkExpr(expr.expr)
+            is ParenExpr -> checkExpr(expr.expr)
+        }
+        fun checkStmt(stmt: Statement): Boolean = when (stmt) {
+            is Assignment -> {
+                val ok = checkExpr(stmt.expr)
+                declared.add(stmt.id)
+                ok
+            }
+            is PrintStmt -> checkExpr(stmt.expr)
+            is IfStmt -> stmt.thenBranch.all { checkStmt(it) } && (stmt.elseBranch?.all { checkStmt(it) } ?: true)
+            is WhileStmt -> stmt.body.all { checkStmt(it) }
+        }
+        return if (ast.statements.all { checkStmt(it) }) ast else null
     }
 }
 

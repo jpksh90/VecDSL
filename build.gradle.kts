@@ -41,7 +41,16 @@ kotlin {
     jvmToolchain(25)
 }
 
+
 tasks.compileKotlin {
+    dependsOn(tasks.generateGrammarSource)
+}
+
+tasks.build {
+    dependsOn(tasks.generateGrammarSource)
+}
+
+tasks.test {
     dependsOn(tasks.generateGrammarSource)
 }
 
@@ -52,4 +61,44 @@ tasks.test {
 
 application {
     mainClass.set("dk.sdu.MainKt")
+}
+
+// Native/CPP target for Armadillo library
+// This block adds a custom Gradle task to build C++ code using Armadillo if needed
+// and provides a configuration for native integration if required by the project.
+
+val armadilloHome = System.getenv("ARMADILLO_HOME") ?: "/usr/local"
+
+val buildArmadillo by tasks.registering(Exec::class) {
+    group = "build"
+    description = "Builds C++ code with Armadillo if present."
+    commandLine = listOf("g++", "-O2", "-std=c++17", "-I$armadilloHome/include", "-L$armadilloHome/lib", "-larmadillo", "-o", "build/armadillo_test", "src/main/cpp/armadillo_test.cpp")
+    // Only run if the C++ source exists
+    onlyIf { file("src/main/cpp/armadillo_test.cpp").exists() }
+}
+
+tasks.named("build") {
+    dependsOn(buildArmadillo)
+}
+
+tasks.register("runDemo1", JavaExec::class) {
+    group = "demo"
+    description = "Run VecDSL demo1 and generate Armadillo C++ code."
+    classpath = sourceSets["main"].runtimeClasspath
+    mainClass.set("dk.sdu.MainKt")
+    args = listOf("demo/demo1.dsl", "demo/demo1.cpp")
+}
+
+tasks.register("runDemo2", JavaExec::class) {
+    group = "demo"
+    description = "Run VecDSL demo2 and generate Armadillo C++ code."
+    classpath = sourceSets["main"].runtimeClasspath
+    mainClass.set("dk.sdu.MainKt")
+    args = listOf("demo/demo2.dsl", "demo/demo2.cpp")
+}
+
+tasks.register("runDemos") {
+    group = "demo"
+    description = "Run all VecDSL demos."
+    dependsOn("runDemo1", "runDemo2")
 }

@@ -13,6 +13,8 @@ program
 statement
     : assignment
     | printStmt
+    | ifStmt
+    | whileStmt
     ;
 
 assignment
@@ -21,6 +23,27 @@ assignment
 
 printStmt
     : 'print' '(' expr ')'
+    ;
+
+ifStmt
+    : 'if' '(' condition ')' '{' statement* '}' ( 'else' '{' statement* '}' )?
+    ;
+
+whileStmt
+    : 'while' '(' condition ')' '{' statement* '}'
+    ;
+
+condition
+    : expr compOp expr
+    ;
+
+compOp
+    : '=='
+    | '!='
+    | '<'
+    | '<='
+    | '>'
+    | '>='
     ;
 
 // ----------------------
