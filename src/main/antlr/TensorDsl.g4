@@ -72,6 +72,9 @@ multiplication
 unary
     : '-' unary
     | primary
+    | primary T_TRANSPOSE
+    | LENGTH '(' primary ')'
+    | DIM '(' primary ')'
     ;
 
 primary
@@ -107,8 +110,12 @@ NUMBER
     : [0-9]+ ('.' [0-9]+)?
     ;
 
-// operator token (optional explicit)
 TENSOR_OP : '#';
+
+T_TRANSPOSE : 'tpos';
+
+LENGTH : 'len';
+DIM : 'dim';
 
 WS
     : [ \t\r\n]+ -> skip

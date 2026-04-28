@@ -75,6 +75,9 @@ object TensorAstBuilder {
 
     private fun fromUnary(ctx: TensorDslParser.UnaryContext): Expr = when {
         ctx.getChild(0).text == "-" -> UnaryOp(Op.Minus, fromUnary(ctx.unary()))
+        ctx.primary() != null && ctx.T_TRANSPOSE() != null -> UnaryOp(Op.Transpose, fromPrimary(ctx.primary()))
+        ctx.LENGTH() != null -> UnaryOp(Op.Length, fromPrimary(ctx.primary()))
+        ctx.DIM() != null -> UnaryOp(Op.Dim, fromPrimary(ctx.primary()))
         ctx.primary() != null -> fromPrimary(ctx.primary())
         else -> error("Unknown unary: ${ctx.text}")
     }
@@ -207,9 +210,16 @@ object TensorCppArmadilloGenerator {
                 Op.Times -> "$left * $right"
                 Op.Div -> "$left / $right"
                 Op.TensorProd -> "$left % $right" // Armadillo element-wise product
+                else -> error("Unknown binary op: ${expr.op}")
             }
         }
-        is UnaryOp -> "-(${generateExpr(expr.expr)})"
+        is UnaryOp -> when (expr.op) {
+            Op.Minus -> "-(${generateExpr(expr.expr)})"
+            Op.Transpose -> "(${generateExpr(expr.expr)}).t()"
+            Op.Length -> "${generateExpr(expr.expr)}.n_elem"
+            Op.Dim -> "${generateExpr(expr.expr)}.n_rows" // or n_cols, depending on semantics
+            else -> error("Unknown unary op: ${expr.op}")
+        }
         is ParenExpr -> "(${generateExpr(expr.expr)})"
     }
 }
@@ -248,4 +258,7 @@ sealed class Op {
     object Times : Op()
     object Div : Op()
     object TensorProd : Op()
+    object Transpose : Op()
+    object Length : Op()
+    object Dim : Op()
 }
