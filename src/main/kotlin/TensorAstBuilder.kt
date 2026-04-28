@@ -116,11 +116,20 @@ object TensorAstBuilder {
     private fun fromPostfix(ctx: TensorDslParser.PostfixContext): Expr {
         var expr = fromPrimary(ctx.primary())
         for (opCtx in ctx.postfixOp()) {
-            expr = when (opCtx.text) {
-                "tpos" -> UnaryOp(Op.Transpose, expr)
-                "len" -> UnaryOp(Op.Length, expr)
-                "dim" -> UnaryOp(Op.Dim, expr)
-                else -> error("Unknown postfix op: ${opCtx.text}")
+            when (opCtx.text) {
+                "tpos" -> expr = UnaryOp(Op.Transpose, expr)
+                "len" -> expr = UnaryOp(Op.Length, expr)
+                "dim" -> expr = UnaryOp(Op.Dim, expr)
+                else -> {
+                    // If it's a number or ID, treat as index
+                    expr = if (opCtx.NUMBER() != null) {
+                        IndexOp(expr, NumberLiteral(opCtx.NUMBER().text.toDouble()))
+                    } else if (opCtx.ID() != null) {
+                        IndexOp(expr, IdRef(opCtx.ID().text))
+                    } else {
+                        error("Unknown postfix op: ${opCtx.text}")
+                    }
+                }
             }
         }
         return expr
@@ -180,6 +189,7 @@ object TensorAstBuilder {
             is BinaryOp -> checkExpr(expr.left) && checkExpr(expr.right)
             is UnaryOp -> checkExpr(expr.expr)
             is ParenExpr -> checkExpr(expr.expr)
+            is IndexOp -> checkExpr(expr.expr) && checkExpr(expr.index)
         }
         fun checkStmt(stmt: Statement): Boolean = when (stmt) {
             is Assignment -> {
@@ -265,6 +275,7 @@ object TensorCppArmadilloGenerator {
             else -> error("Unknown unary op: ${expr.op}")
         }
         is ParenExpr -> "(${generateExpr(expr.expr)})"
+        is IndexOp -> "(${generateExpr(expr.expr)}.at(${generateExpr(expr.index)}))"
     }
 }
 
@@ -295,6 +306,7 @@ class TensorLiteral(val elements: List<Expr>) : Expr()
 class BinaryOp(val left: Expr, val op: Op, val right: Expr) : Expr()
 class UnaryOp(val op: Op, val expr: Expr) : Expr()
 class ParenExpr(val expr: Expr) : Expr()
+class IndexOp(val expr: Expr, val index: Expr) : Expr()
 
 sealed class Op {
     object Plus : Op()

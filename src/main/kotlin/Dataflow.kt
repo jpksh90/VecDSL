@@ -96,6 +96,14 @@ fun evalConstExpr(expr: Expr, env: Map<String, ConstVec>): ConstVec = when (expr
         }
     }
     is ParenExpr -> evalConstExpr(expr.expr, env)
+    is IndexOp -> {
+        val base = evalConstExpr(expr.expr, env)
+        val idx = evalConstExpr(expr.index, env)
+        if (base is ConstVec.Const && idx is ConstVec.Const && idx.values.size == 1) {
+            val i = idx.values[0].toInt()
+            if (i in base.values.indices) ConstVec.Const(listOf(base.values[i])) else ConstVec.Top
+        } else ConstVec.Top
+    }
 }
 
 fun Program.constantPropagationEnv(): Map<String, ConstVec> {
@@ -187,6 +195,7 @@ fun Expr.rewriteWithConstants(env: Map<String, ConstVec>): Expr = when (this) {
         }
     }
     is ParenExpr -> ParenExpr(expr.rewriteWithConstants(env))
+    is IndexOp -> IndexOp(this.expr.rewriteWithConstants(env), this.index.rewriteWithConstants(env))
 }
 
 fun Program.livenessAnalysis(): List<LivenessInfo> {
@@ -225,6 +234,7 @@ fun Expr.usedVars(): Set<String> = when (this) {
     is BinaryOp -> left.usedVars().union(right.usedVars())
     is UnaryOp -> expr.usedVars()
     is ParenExpr -> expr.usedVars()
+    is IndexOp -> this.expr.usedVars().union((this as IndexOp).index.usedVars())
 }
 
 fun CFG.dumpToDot(filename: String, stmts: List<Statement>? = null) {

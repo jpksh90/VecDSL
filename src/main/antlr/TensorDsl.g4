@@ -80,6 +80,8 @@ postfixOp
     : 'tpos'
     | 'len'
     | 'dim'
+    | NUMBER
+    | ID
     ;
 
 primary
