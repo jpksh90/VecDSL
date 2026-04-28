@@ -122,3 +122,8 @@ TENSOR_OP : '#';
 WS
     : [ \t\r\n]+ -> skip
     ;
+
+COMMENT
+    : '--' ~[\r\n]* -> skip
+    ;
+
