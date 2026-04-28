@@ -60,6 +60,12 @@ fun prettyPrintAst(node: TensorAstNode, indent: String = ""): String = when (nod
     }
     is ParenExpr -> "(${prettyPrintAst(node.expr)})"
     is Condition -> "${prettyPrintAst(node.left)} ${prettyPrintCompOp(node.op)} ${prettyPrintAst(node.right)}"
+    is WhileStmt -> buildString {
+        append("${indent}while (" + prettyPrintAst(node.cond) + ") {\n")
+        append(node.body.joinToString("\n") { prettyPrintAst(it, indent + "    ") })
+        append("\n$indent}")
+    }
+    is IndexOp -> "${prettyPrintAst(node.expr)}.${prettyPrintAst(node.index)}"
     else -> error("Unknown AST node type: ${node::class.simpleName}")
 }
 
