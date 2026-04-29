@@ -8,6 +8,7 @@ data class Assignment(val id: String, val expr: Expr) : Statement()
 data class PrintStmt(val expr: Expr) : Statement()
 data class IfStmt(val cond: Condition, val thenBranch: List<Statement>, val elseBranch: List<Statement>?) : Statement()
 data class WhileStmt(val cond: Condition, val body: List<Statement>) : Statement()
+data class Phi(val id: String, val versions: Map<Int, String>) : Statement() // Map of block index to variable version
 
 data class Program(val statements: List<Statement>) : TensorAstNode()
 

@@ -6,9 +6,9 @@ print(c)
 
 -- Demonstrate transpose, length, and dimension operators
 x = [1, 2, 3]
-y = x.tpos + (b.tpos + c.tpos)
-z = x.len
-w = x.dim
+y = x->tpos + (b->tpos + c->tpos)
+z = x->len
+w = x->dim
 print(y)
 print(z)
 print(w)

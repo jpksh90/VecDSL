@@ -25,9 +25,9 @@ fun prettyPrintAst(node: TensorAstNode, indent: String = ""): String = when (nod
     is BinaryOp -> "${prettyPrintAst(node.left)} ${prettyPrintOp(node.op)} ${prettyPrintAst(node.right)}"
     is UnaryOp -> when (node.op) {
         is Op.Minus -> "-${prettyPrintAst(node.expr)}"
-        is Op.Transpose -> "${prettyPrintAst(node.expr)}.tpos"
-        is Op.Length -> "${prettyPrintAst(node.expr)}.len"
-        is Op.Dim -> "${prettyPrintAst(node.expr)}.dim"
+        is Op.Transpose -> "${prettyPrintAst(node.expr)}->tpos"
+        is Op.Length -> "${prettyPrintAst(node.expr)}->len"
+        is Op.Dim -> "${prettyPrintAst(node.expr)}->dim"
         else -> error("Unknown unary op: ${node.op}")
     }
     is ParenExpr -> "(${prettyPrintAst(node.expr)})"
@@ -47,7 +47,7 @@ fun prettyPrintAst(node: TensorAstNode, indent: String = ""): String = when (nod
             append("\n$indent}")
         }
     }
-    is IndexOp -> "${prettyPrintAst(node.expr)}.${prettyPrintAst(node.index)}"
+    is IndexOp -> "${prettyPrintAst(node.expr)}->${prettyPrintAst(node.index)}"
     else -> error("Unknown AST node type: ${node::class.simpleName}")
 }
 

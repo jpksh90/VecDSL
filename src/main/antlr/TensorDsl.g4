@@ -73,14 +73,18 @@ unary
     ;
 
 postfix
-    : primary ('.' postfixOp)*
+    : primary ('->' postfixOp)*
     ;
 
 postfixOp
     : 'tpos'
     | 'len'
     | 'dim'
-    | NUMBER
+    | indexLiteral
+    ;
+
+indexLiteral
+    : NUMBER
     | ID
     ;
 

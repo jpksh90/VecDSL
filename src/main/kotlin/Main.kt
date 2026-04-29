@@ -1,6 +1,8 @@
+import dataflow.SSATransformer
+import dataflow.Optimizer
 import dataflow.dumpCfgToDot
 import dsl.TensorAstBuilder
-import dsl.TensorCppArmadilloGenerator
+import codegen.TensorCppArmadilloGenerator
 import org.antlr.v4.runtime.CharStreams
 import org.antlr.v4.runtime.CommonTokenStream
 import java.io.File
@@ -37,9 +39,25 @@ fun main(args: Array<String>) {
         println("CFG dumped to: $dotFile")
     }
 
+    // --- SSA Transformation ---
+    val ssaAst = try {
+        SSATransformer(ast).transform()
+    } catch (e: Exception) {
+        println("SSA Transformation failed: ${e.message}")
+        ast
+    }
+
+    // --- Optimization Passes ---
+    val optimizedAst = try {
+        Optimizer(ssaAst).optimize()
+    } catch (e: Exception) {
+        println("Optimization failed: ${e.message}")
+        ssaAst // Fallback to SSA-form AST if optimization fails
+    }
+
     // --- Armadillo C++ code generation ---
     val outputCpp = if (args.size > 1 && args[1] != "--dump-cfg") args[1] else if (args.size > 3 && args[3] != "--dump-cfg") args[3] else "armadillo_out.cpp"
-    val cppCode = TensorCppArmadilloGenerator.generate(ast)
+    val cppCode = TensorCppArmadilloGenerator.generate(optimizedAst)
     val outFile = File(outputCpp)
     outFile.writeText(cppCode)
     println("C++ Armadillo code generated in: ${outFile.absolutePath}")

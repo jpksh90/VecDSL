@@ -62,6 +62,7 @@ fun <T> runDataflow(cfg: CFG, analysis: Analysis<T>): List<T> {
     return state
 }
 
+// Helper to get state BEFORE statement in forward analysis
 fun <T> List<T>.getInStates(cfg: CFG, lattice: Lattice<T>, direction: Direction): List<T> {
     return List(this.size) { i ->
         val node = cfg.nodes[i]
@@ -195,6 +196,9 @@ class ConstantPropagationAnalysis(val cfg: CFG) : Analysis<Map<String, ConstVec>
             is dsl.Assignment -> {
                 output[stmt.id] = evalConstExpr(stmt.expr, input)
             }
+            is dsl.Phi -> {
+                output[stmt.id] = ConstVec.Top
+            }
             else -> {}
         }
         return output
@@ -258,6 +262,7 @@ fun dsl.Statement.allSubExprs(): List<Expr> = when (this) {
     is dsl.PrintStmt -> expr.allSubExprs() + expr
     is dsl.IfStmt -> cond.left.allSubExprs() + cond.left + cond.right.allSubExprs() + cond.right
     is dsl.WhileStmt -> cond.left.allSubExprs() + cond.left + cond.right.allSubExprs() + cond.right
+    is dsl.Phi -> emptyList()
 }
 
 fun dsl.Expr.allSubExprs(): List<Expr> = when (this) {
@@ -294,6 +299,7 @@ fun dsl.Statement.rewriteWithConstants(env: Map<String, ConstVec>): dsl.Statemen
         thenBranch.map { it.rewriteWithConstants(env) },
         elseBranch?.map { it.rewriteWithConstants(env) })
     is dsl.WhileStmt -> dsl.WhileStmt(cond, body.map { it.rewriteWithConstants(env) })
+    is dsl.Phi -> this
 }
 
 fun dsl.Expr.rewriteWithConstants(env: Map<String, ConstVec>): dsl.Expr = when (this) {
@@ -338,12 +344,14 @@ fun dsl.Statement.usedVars(): Set<String> = when (this) {
     is dsl.PrintStmt -> expr.usedVars()
     is dsl.IfStmt -> cond.usedVars()
     is dsl.WhileStmt -> cond.usedVars()
+    is dsl.Phi -> versions.values.toSet()
 }
 
 fun dsl.Condition.usedVars(): Set<String> = left.usedVars().union(right.usedVars())
 
 fun dsl.Statement.definedVars(): Set<String> = when (this) {
     is dsl.Assignment -> setOf(id)
+    is dsl.Phi -> setOf(id)
     else -> emptySet()
 }
 

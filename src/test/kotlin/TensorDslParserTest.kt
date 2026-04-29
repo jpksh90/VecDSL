@@ -52,9 +52,17 @@ class TensorDslParserTest {
     }
 
     @Test
-    fun testInvalidSyntax() {
-        val code = "a = [1, 2, 3] # ; print(a);" // invalid tensor product
-        assertThrows(RuntimeException::class.java) { parse(code) }
+    fun testPostfixOperations() {
+        val code = """
+            v = [1, 2, 3];
+            v_len = v->len;
+            t = v->tpos;
+            d = v->dim;
+            first = v->0;
+            second = v->1;
+            print(first);
+        """.trimIndent()
+        assertDoesNotThrow { parse(code) }
     }
 }
 

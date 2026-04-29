@@ -63,6 +63,7 @@ class CommonSubexpressionEliminator(val program: Program) {
                     stmt.body.map { processStatement(it, available, newStatements) }
                 )
             }
+            is Phi -> stmt
         }
     }
 
@@ -154,6 +155,7 @@ class ConstantFolder(val program: Program) {
                 val foldedCond = Condition(foldExpr(stmt.cond.left, env), stmt.cond.op, foldExpr(stmt.cond.right, env))
                 WhileStmt(foldedCond, stmt.body.mapNotNull { foldStatement(it) })
             }
+            is Phi -> stmt
         }
     }
 
