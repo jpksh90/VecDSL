@@ -1,3 +1,6 @@
+import dataflow.dumpCfgToDot
+import dsl.TensorAstBuilder
+import dsl.TensorCppArmadilloGenerator
 import org.antlr.v4.runtime.CharStreams
 import org.antlr.v4.runtime.CommonTokenStream
 import java.io.File
@@ -24,7 +27,7 @@ fun main(args: Array<String>) {
         println("Failed to build AST")
         return
     }
-    println(prettyPrintAst(ast as TensorAstNode))
+    println(prettyPrintAst(ast))
 
     // --- Optionally dump CFG to dot file ---
     val dumpIdx = args.indexOf("--dump-cfg")
@@ -40,51 +43,4 @@ fun main(args: Array<String>) {
     val outFile = File(outputCpp)
     outFile.writeText(cppCode)
     println("C++ Armadillo code generated in: ${outFile.absolutePath}")
-}
-
-
-fun prettyPrintAst(node: TensorAstNode, indent: String = ""): String = when (node) {
-    is Program -> node.statements.joinToString("\n") { prettyPrintAst(it, indent) }
-    is Assignment -> "$indent${node.id} = ${prettyPrintAst(node.expr)}"
-    is PrintStmt -> "$indent print(${prettyPrintAst(node.expr)})"
-    is NumberLiteral -> node.value.toString()
-    is IdRef -> node.name
-    is TensorLiteral -> node.elements.joinToString(prefix = "[", postfix = "]", separator = ", ") { prettyPrintAst(it) }
-    is BinaryOp -> "${prettyPrintAst(node.left)} ${prettyPrintOp(node.op)} ${prettyPrintAst(node.right)}"
-    is UnaryOp -> when (node.op) {
-        is Op.Minus -> "-${prettyPrintAst(node.expr)}"
-        is Op.Transpose -> "${prettyPrintAst(node.expr)}.tpos"
-        is Op.Length -> "${prettyPrintAst(node.expr)}.len"
-        is Op.Dim -> "${prettyPrintAst(node.expr)}.dim"
-        else -> error("Unknown unary op: ${node.op}")
-    }
-    is ParenExpr -> "(${prettyPrintAst(node.expr)})"
-    is Condition -> "${prettyPrintAst(node.left)} ${prettyPrintCompOp(node.op)} ${prettyPrintAst(node.right)}"
-    is WhileStmt -> buildString {
-        append("${indent}while (" + prettyPrintAst(node.cond) + ") {\n")
-        append(node.body.joinToString("\n") { prettyPrintAst(it, indent + "    ") })
-        append("\n$indent}")
-    }
-    is IndexOp -> "${prettyPrintAst(node.expr)}.${prettyPrintAst(node.index)}"
-    else -> error("Unknown AST node type: ${node::class.simpleName}")
-}
-
-fun prettyPrintOp(op: Op): String = when (op) {
-    is Op.Plus -> "+"
-    is Op.Minus -> "-"
-    is Op.Times -> "*"
-    is Op.Div -> "/"
-    is Op.TensorProd -> "#"
-    is Op.Transpose -> "tpos"
-    is Op.Length -> "len"
-    is Op.Dim -> "dim"
-}
-
-fun prettyPrintCompOp(op: CompOp): String = when (op) {
-    is CompOp.Eq -> "=="
-    is CompOp.Neq -> "!="
-    is CompOp.Lt -> "<"
-    is CompOp.Le -> "<="
-    is CompOp.Gt -> ">"
-    is CompOp.Ge -> ">="
 }

@@ -1,3 +1,8 @@
+package dsl
+
+import TensorDslParser
+
+// Builder logic only
 object TensorAstBuilder {
     fun fromProgram(ctx: TensorDslParser.ProgramContext): Program? {
         return fromProgramChecked(ctx)
@@ -9,49 +14,16 @@ object TensorAstBuilder {
     }
 
     private fun fromStatement(ctx: TensorDslParser.StatementContext): Statement = when {
-        ctx.assignment() != null -> try {
-            fromAssignment(ctx.assignment())
-        } catch (e: Exception) {
-            val line = ctx.start.line
-            val col = ctx.start.charPositionInLine
-            error("[Line $line, Col $col] ${e.message}")
-        }
-        ctx.printStmt() != null -> try {
-            fromPrintStmt(ctx.printStmt())
-        } catch (e: Exception) {
-            val line = ctx.start.line
-            val col = ctx.start.charPositionInLine
-            error("[Line $line, Col $col] ${e.message}")
-        }
-        ctx.ifStmt() != null -> try {
-            fromIfStmt(ctx.ifStmt())
-        } catch (e: Exception) {
-            val line = ctx.start.line
-            val col = ctx.start.charPositionInLine
-            error("[Line $line, Col $col] ${e.message}")
-        }
-        ctx.whileStmt() != null -> try {
-            fromWhileStmt(ctx.whileStmt())
-        } catch (e: Exception) {
-            val line = ctx.start.line
-            val col = ctx.start.charPositionInLine
-            error("[Line $line, Col $col] ${e.message}")
-        }
-        else -> {
-            val line = ctx.start.line
-            val col = ctx.start.charPositionInLine
-            error("[Line $line, Col $col] Unknown statement: ${ctx.text}")
-        }
+        ctx.assignment() != null -> fromAssignment(ctx.assignment())
+        ctx.printStmt() != null -> fromPrintStmt(ctx.printStmt())
+        ctx.ifStmt() != null -> fromIfStmt(ctx.ifStmt())
+        ctx.whileStmt() != null -> fromWhileStmt(ctx.whileStmt())
+        else -> error("Unknown statement: ${ctx.text}")
     }
 
     private fun fromAssignment(ctx: TensorDslParser.AssignmentContext): Assignment {
         val id = ctx.ID().text
-        val exprCtx = ctx.expr()
-        if (exprCtx == null) {
-            val line = ctx.start.line
-            val col = ctx.start.charPositionInLine
-            error("[Line $line, Col $col] Assignment to '$id' is missing an expression: ${ctx.text}")
-        }
+        val exprCtx = ctx.expr() ?: error("Assignment to '$id' is missing an expression: ${ctx.text}")
         val expr = fromExpr(exprCtx)
         return Assignment(id, expr)
     }
@@ -81,8 +53,7 @@ object TensorAstBuilder {
     private fun fromTensorProduct(ctx: TensorDslParser.TensorProductContext): Expr {
         var expr = fromMultiplication(ctx.multiplication(0))
         for (i in 1 until ctx.multiplication().size) {
-            val opToken = ctx.getChild(i * 2 - 1).text
-            val op = when (opToken) {
+            val op = when (val opToken = ctx.getChild(i * 2 - 1).text) {
                 "#" -> Op.TensorProd
                 else -> error("Unknown tensor product op: $opToken")
             }
@@ -116,13 +87,12 @@ object TensorAstBuilder {
     private fun fromPostfix(ctx: TensorDslParser.PostfixContext): Expr {
         var expr = fromPrimary(ctx.primary())
         for (opCtx in ctx.postfixOp()) {
-            when (opCtx.text) {
-                "tpos" -> expr = UnaryOp(Op.Transpose, expr)
-                "len" -> expr = UnaryOp(Op.Length, expr)
-                "dim" -> expr = UnaryOp(Op.Dim, expr)
+            expr = when (opCtx.text) {
+                "tpos" -> UnaryOp(Op.Transpose, expr)
+                "len" -> UnaryOp(Op.Length, expr)
+                "dim" -> UnaryOp(Op.Dim, expr)
                 else -> {
-                    // If it's a number or ID, treat as index
-                    expr = if (opCtx.NUMBER() != null) {
+                    if (opCtx.NUMBER() != null) {
                         IndexOp(expr, NumberLiteral(opCtx.NUMBER().text.toDouble()))
                     } else if (opCtx.ID() != null) {
                         IndexOp(expr, IdRef(opCtx.ID().text))
@@ -150,11 +120,21 @@ object TensorAstBuilder {
 
     private fun fromIfStmt(ctx: TensorDslParser.IfStmtContext): IfStmt {
         val cond = fromCondition(ctx.condition())
-        val elseIdx = ctx.children.indexOfFirst { it.text == "else" }
-        val stmts = ctx.statement()
-        val thenBranch = if (elseIdx == -1) stmts.map { fromStatement(it) } else stmts.take(elseIdx).map { fromStatement(it) }
-        val elseBranch = if (elseIdx == -1) null else stmts.drop(elseIdx).map { fromStatement(it) }
-        return IfStmt(cond, thenBranch, elseBranch)
+        val thenBranch = mutableListOf<Statement>()
+        val elseBranch = mutableListOf<Statement>()
+        var sawElse = false
+        for (i in 0 until ctx.childCount) {
+            val child = ctx.getChild(i)
+            if (child.text == "else") {
+                sawElse = true
+                continue
+            }
+            if (child is TensorDslParser.StatementContext) {
+                if (sawElse) elseBranch.add(fromStatement(child))
+                else thenBranch.add(fromStatement(child))
+            }
+        }
+        return IfStmt(cond, thenBranch, if (sawElse) elseBranch else null)
     }
 
     private fun fromWhileStmt(ctx: TensorDslParser.WhileStmtContext): WhileStmt {
@@ -249,7 +229,7 @@ object TensorCppArmadilloGenerator {
     }
 
     private fun generateExpr(expr: Expr): String = when (expr) {
-        is NumberLiteral -> expr.value.toString()
+        is NumberLiteral -> if (expr.value == expr.value.toLong().toDouble()) expr.value.toLong().toString() else expr.value.toString()
         is IdRef -> expr.name
         is TensorLiteral -> {
             val elems = expr.elements.joinToString(", ") { generateExpr(it) }
@@ -277,44 +257,4 @@ object TensorCppArmadilloGenerator {
         is ParenExpr -> "(${generateExpr(expr.expr)})"
         is IndexOp -> "(${generateExpr(expr.expr)}.at(${generateExpr(expr.index)}))"
     }
-}
-
-sealed class TensorAstNode
-
-class Program(val statements: List<Statement>) : TensorAstNode()
-
-sealed class Statement : TensorAstNode()
-class Assignment(val id: String, val expr: Expr) : Statement()
-class PrintStmt(val expr: Expr) : Statement()
-class IfStmt(val cond: Condition, val thenBranch: List<Statement>, val elseBranch: List<Statement>?) : Statement()
-class WhileStmt(val cond: Condition, val body: List<Statement>) : Statement()
-
-class Condition(val left: Expr, val op: CompOp, val right: Expr) : TensorAstNode()
-sealed class CompOp : TensorAstNode() {
-    object Eq : CompOp()
-    object Neq : CompOp()
-    object Lt : CompOp()
-    object Le : CompOp()
-    object Gt : CompOp()
-    object Ge : CompOp()
-}
-
-sealed class Expr : TensorAstNode()
-class NumberLiteral(val value: Double) : Expr()
-class IdRef(val name: String) : Expr()
-class TensorLiteral(val elements: List<Expr>) : Expr()
-class BinaryOp(val left: Expr, val op: Op, val right: Expr) : Expr()
-class UnaryOp(val op: Op, val expr: Expr) : Expr()
-class ParenExpr(val expr: Expr) : Expr()
-class IndexOp(val expr: Expr, val index: Expr) : Expr()
-
-sealed class Op {
-    object Plus : Op()
-    object Minus : Op()
-    object Times : Op()
-    object Div : Op()
-    object TensorProd : Op()
-    object Transpose : Op()
-    object Length : Op()
-    object Dim : Op()
 }

@@ -2,11 +2,7 @@ package dk.sdu
 
 import TensorDslLexer
 import TensorDslParser
-import org.antlr.v4.runtime.CharStreams
-import org.antlr.v4.runtime.CommonTokenStream
-import org.antlr.v4.runtime.BaseErrorListener
-import org.antlr.v4.runtime.RecognitionException
-import org.antlr.v4.runtime.Recognizer
+import org.antlr.v4.runtime.*
 import org.junit.jupiter.api.Assertions.assertDoesNotThrow
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test

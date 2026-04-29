@@ -4,16 +4,22 @@ using namespace arma;
 using namespace std;
 
 int main() {
-     auto a = vec({1.4, 2.8, 3.9});
-     auto b = vec({4.2, 5.4, 6.0});
-     auto c = a + b;
+     auto a = vec({1.0, 2.0, 3.0});
+     auto b = vec({4.0, 5.0, 6.0});
+     auto c = vec({0.0, 0.0, 0.0});
+     auto d = vec({0.0, 0.0, 1.0});
+     auto c = b + d;
+     auto i = 0.0;
+     while ((i < 3.0)) {
+         auto c = c + b;
+         auto i = i + 1.0;
+    }
+     if (((a.at(0.0)) > 0.0)) {
+         auto d = c;
+    } else {
+         auto d = a;
+    }
      cout << c << endl;
-     auto x = vec({1.0, 2.0, 3.0});
-     auto y = (x).t() + ((b).t() + (c).t());
-     auto z = x.n_elem;
-     auto w = x.n_rows;
-     cout << y << endl;
-     cout << z << endl;
-     cout << w << endl;
+     cout << d << endl;
     return 0;
 }

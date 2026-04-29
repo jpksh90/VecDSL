@@ -10,7 +10,7 @@ while (i < 3) {
     i = i + 1
 }
 
-if (a[0] > 0) {
+if (a.0 > 0) {
     d = c
 } else {
     d = a
