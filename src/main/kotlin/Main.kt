@@ -1,4 +1,3 @@
-import dataflow.SSATransformer
 import dataflow.Optimizer
 import dataflow.dumpCfgToDot
 import dsl.TensorAstBuilder
@@ -39,20 +38,12 @@ fun main(args: Array<String>) {
         println("CFG dumped to: $dotFile")
     }
 
-    // --- SSA Transformation ---
-    val ssaAst = try {
-        SSATransformer(ast).transform()
-    } catch (e: Exception) {
-        println("SSA Transformation failed: ${e.message}")
-        ast
-    }
-
     // --- Optimization Passes ---
     val optimizedAst = try {
-        Optimizer(ssaAst).optimize()
+        Optimizer(ast).optimize()
     } catch (e: Exception) {
         println("Optimization failed: ${e.message}")
-        ssaAst // Fallback to SSA-form AST if optimization fails
+        ast
     }
 
     // --- Armadillo C++ code generation ---

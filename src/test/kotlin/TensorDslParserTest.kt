@@ -2,8 +2,10 @@ package dk.sdu
 
 import TensorDslLexer
 import TensorDslParser
+import dsl.TensorAstBuilder
 import org.antlr.v4.runtime.*
 import org.junit.jupiter.api.Assertions.assertDoesNotThrow
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
 
@@ -64,5 +66,19 @@ class TensorDslParserTest {
         """.trimIndent()
         assertDoesNotThrow { parse(code) }
     }
-}
 
+    @Test
+    fun testRepeatedVariableDefinitionIsRejectedDuringTreeValidation() {
+        val code = """
+            a = [1, 2, 3];
+            b = a;
+            a = b;
+        """.trimIndent()
+
+        val lexer = TensorDslLexer(CharStreams.fromString(code))
+        val tokens = CommonTokenStream(lexer)
+        val parser = TensorDslParser(tokens)
+
+        assertNull(TensorAstBuilder.fromProgram(parser.program()))
+    }
+}

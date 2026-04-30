@@ -10,8 +10,41 @@ object TensorAstBuilder {
     }
 
     fun fromProgramChecked(ctx: TensorDslParser.ProgramContext): Program? {
+        if (!validateParseTree(ctx)) {
+            return null
+        }
         val ast = Program(ctx.statement().map { fromStatement(it) })
         return checkVariableDeclarations(ast)
+    }
+
+    fun validateParseTree(ctx: TensorDslParser.ProgramContext): Boolean {
+        val declared = mutableSetOf<String>()
+
+        fun checkStatement(statementCtx: TensorDslParser.StatementContext): Boolean = when {
+            statementCtx.assignment() != null -> {
+                val assignment = statementCtx.assignment()
+                val id = assignment.ID().text
+                if (id in declared) {
+                    println("Error: Variable '$id' redefined. Non-repetition rule violated.")
+                    false
+                } else {
+                    declared.add(id)
+                    true
+                }
+            }
+            statementCtx.printStmt() != null -> true
+            statementCtx.ifStmt() != null -> {
+                val ifStmt = statementCtx.ifStmt()
+                ifStmt.statement().all { checkStatement(it) }
+            }
+            statementCtx.whileStmt() != null -> {
+                val whileStmt = statementCtx.whileStmt()
+                whileStmt.statement().all { checkStatement(it) }
+            }
+            else -> false
+        }
+
+        return ctx.statement().all { checkStatement(it) }
     }
 
     private fun fromStatement(ctx: TensorDslParser.StatementContext): Statement = when {
@@ -180,9 +213,14 @@ object TensorAstBuilder {
 
         fun checkStmt(stmt: Statement): Boolean = when (stmt) {
             is Assignment -> {
-                val ok = checkExpr(stmt.expr)
-                declared.add(stmt.id)
-                ok
+                if (declared.contains(stmt.id)) {
+                    println("Error: Variable '${stmt.id}' redefined. Non-repetition rule violated.")
+                    false
+                } else {
+                    val ok = checkExpr(stmt.expr)
+                    declared.add(stmt.id)
+                    ok
+                }
             }
             is PrintStmt -> checkExpr(stmt.expr)
             is Phi -> true // Phi nodes are generated correctly by SSA

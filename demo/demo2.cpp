@@ -4,20 +4,14 @@ using namespace arma;
 using namespace std;
 
 int main() {
-     auto a = vec({1, 2, 3});
-     auto b = vec({4, 5, 6});
-     auto c = vec({0, 0, 0});
-     auto d = vec({0, 0, 1});
-     auto c = b + d;
-     auto i = 0;
-     while ((i < 3)) {
-         auto c = c + b;
-         auto i = i + 1;
+     while ((1 < 3)) {
+         auto loopValue = t_0;
+         cout << t_1 << endl;
     }
-     if (((a.at(0)) > 0)) {
-         auto d = c;
+     if ((1 > 0)) {
+         cout << vec({4, 5, 7}) << endl;
     } else {
-         auto d = a;
+         cout << vec({1, 2, 3}) << endl;
     }
     return 0;
 }

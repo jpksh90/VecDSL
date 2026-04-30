@@ -1,18 +1,18 @@
 a = [1, 2, 3]
 b = [4, 5, 6]
-c = [0, 0, 0]
-d = [0, 0, 1]
-c = b+d
-i = 0
+offset = [0, 0, 1]
+sum = b + offset
+loopSeed = a->0
+loopLimit = 3
+first = a->0
 
-while (i < 3) {
-    c = c + b
-    i = i + 1
+while (loopSeed < loopLimit) {
+    loopValue = sum + b
+    print(loopValue)
 }
 
-if (a->0 > 0) {
-    d = c
+if (first > 0) {
+    print(sum)
 } else {
-    d = a
+    print(a)
 }
-
