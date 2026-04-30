@@ -6,6 +6,7 @@ import dsl.TensorAstBuilder
 import org.antlr.v4.runtime.CharStreams
 import org.antlr.v4.runtime.CommonTokenStream
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 import prettyPrintAst
@@ -14,13 +15,13 @@ class CFGTest {
     @Test
     fun testIfStmtCFG() {
         val code = """
-            a = 1;
+            let a = 1;
             if (a > 0) {
-                b = 2;
+                let b = 2;
             } else {
-                c = 3;
+                let c = 3;
             }
-            d = 4;
+            let d = 4;
         """.trimIndent()
         
         val lexer = TensorDslLexer(CharStreams.fromString(code))
@@ -59,10 +60,10 @@ class CFGTest {
     @Test
     fun testWhileStmtCFG() {
         val code = """
-            a = [0];
-            limit = 10;
+            let a = [0];
+            let limit = 10;
             while (a->0 < limit) {
-                next = a + [1];
+                let next = a + [1];
             }
             print(a);
         """.trimIndent()
@@ -102,14 +103,14 @@ class CFGTest {
     @Test
     fun testToBlockCFG() {
         val code = """
-            a = 1;
-            b = 2;
+            let a = 1;
+            let b = 2;
             if (a > 0) {
-                c = 3;
+                let c = 3;
             } else {
-                d = 4;
+                let d = 4;
             }
-            e = 5;
+            let e = 5;
         """.trimIndent()
         
         val lexer = TensorDslLexer(CharStreams.fromString(code))
@@ -137,8 +138,8 @@ class CFGTest {
     @Test
     fun testConstantPropagation() {
         val code = """
-            x = 10;
-            y = x * 2;
+            let x = 10;
+            let y = x * 2;
             print(y);
         """.trimIndent()
         
@@ -155,9 +156,9 @@ class CFGTest {
     @Test
     fun testLivenessAnalysis() {
         val code = """
-            a = 1;
-            b = 2;
-            c = a + b;
+            let a = 1;
+            let b = 2;
+            let c = a + b;
             print(c);
         """.trimIndent()
         
@@ -183,12 +184,12 @@ class CFGTest {
     @Test
     fun testAvailableExpressions() {
         val code = """
-            a = 1;
-            b = 2;
-            x = a + b;
-            y = a + b;
-            c = 3;
-            z = a + b;
+            let a = 1;
+            let b = 2;
+            let x = a + b;
+            let y = a + b;
+            let c = 3;
+            let z = a + b;
         """.trimIndent()
         
         val lexer = TensorDslLexer(CharStreams.fromString(code))
@@ -204,7 +205,7 @@ class CFGTest {
         val lattice = MustPowerSetLattice(allExprs)
         val inStates = available.getInStates(cfg, lattice, Direction.FORWARD)
         
-        val aPlusB = (program.statements[2] as dsl.Assignment).expr
+        val aPlusB = (program.statements[2] as dsl.Declaration).expr!!
         assert(inStates[3].contains(aPlusB))
         
         // At z = a + b (index 5), a + b should still be available
@@ -214,10 +215,10 @@ class CFGTest {
     @Test
     fun testCSE() {
         val code = """
-            a = 1;
-            b = 2;
-            x = a + b;
-            y = a + b;
+            let a = 1;
+            let b = 2;
+            let x = a + b;
+            let y = a + b;
             print(y);
         """.trimIndent()
         
@@ -234,14 +235,14 @@ class CFGTest {
     }
 
     @Test
-    fun testRepeatedVariablesAreRejectedBeforeSsa() {
+    fun testAssignmentsAfterDeclarationAreAllowed() {
         val code = """
-            a = [1, 2, 3];
-            b = [4, 5, 6];
-            c = [0, 0, 0];
-            d = [0, 0, 1];
+            let a = [1, 2, 3];
+            let b = [4, 5, 6];
+            let c = [0, 0, 0];
+            let d = [0, 0, 1];
             c = b + d;
-            i = 0;
+            let i = 0;
 
             while (i < 3) {
                 c = c + b;
@@ -259,6 +260,6 @@ class CFGTest {
             TensorDslParser(CommonTokenStream(TensorDslLexer(CharStreams.fromString(code)))).program()
         )
 
-        assertNull(program)
+        assertNotNull(program)
     }
 }

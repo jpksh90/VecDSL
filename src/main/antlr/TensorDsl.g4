@@ -9,10 +9,15 @@ program
     ;
 
 statement
-    : assignment
+    : declaration
+    | assignment
     | printStmt
     | ifStmt
     | whileStmt
+    ;
+
+declaration
+    : 'let' ID ( '=' expr )?
     ;
 
 assignment
@@ -112,6 +117,7 @@ elements
 // ----------------------
 
 PRINT : 'print';
+LET : 'let';
 
 ID
     : [a-zA-Z_][a-zA-Z0-9_]*
@@ -132,4 +138,3 @@ WS
 COMMENT
     : '--' ~[\r\n]* -> skip
     ;
-

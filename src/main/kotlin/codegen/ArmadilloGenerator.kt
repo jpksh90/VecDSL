@@ -43,7 +43,8 @@ object TensorCppArmadilloGenerator {
 
     private fun generateStatements(node: TensorAstNode, indent: String = "    "): String = when (node) {
         is Program -> node.statements.joinToString("") { generateStatements(it, indent) }
-        is Assignment -> "$indent auto ${node.id} = ${generateExpr(node.expr)};\n"
+        is Declaration -> if (node.expr != null) "$indent auto ${node.id} = ${generateExpr(node.expr)};\n" else "$indent /* let ${node.id}; */\n"
+        is Assignment -> "$indent ${node.id} = ${generateExpr(node.expr)};\n"
         is PrintStmt -> "$indent cout << ${generateExpr(node.expr)} << endl;\n"
         is Phi -> "$indent // Phi: ${node.id} = phi(${node.versions.values.joinToString(", ")})\n"
         is IfStmt -> buildString {

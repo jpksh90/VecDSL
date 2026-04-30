@@ -13,9 +13,9 @@ class OptimizerTest {
     @Test
     fun testConstantFoldingAndDCE() {
         val code = """
-            a = 1 + 2;
-            b = a * 10;
-            c = 100; -- dead assignment
+            let a = 1 + 2;
+            let b = a * 10;
+            let c = 100; -- dead assignment
             print(b);
         """.trimIndent()
         

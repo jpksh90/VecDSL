@@ -193,6 +193,13 @@ class ConstantPropagationAnalysis(val cfg: CFG) : Analysis<Map<String, ConstVec>
         val stmt = cfg.stmts[stmtIdx]
         val output = input.toMutableMap()
         when (stmt) {
+            is dsl.Declaration -> {
+                if (stmt.expr != null) {
+                    output[stmt.id] = evalConstExpr(stmt.expr, input)
+                } else {
+                    output[stmt.id] = ConstVec.Top
+                }
+            }
             is dsl.Assignment -> {
                 output[stmt.id] = evalConstExpr(stmt.expr, input)
             }
@@ -258,6 +265,7 @@ class AvailableExpressionsAnalysis(cfg: CFG) : GenKillAnalysis<Expr>(cfg) {
 }
 
 fun dsl.Statement.allSubExprs(): List<Expr> = when (this) {
+    is dsl.Declaration -> expr?.let { it.allSubExprs() + it } ?: emptyList()
     is dsl.Assignment -> expr.allSubExprs() + expr
     is dsl.PrintStmt -> expr.allSubExprs() + expr
     is dsl.IfStmt -> cond.left.allSubExprs() + cond.left + cond.right.allSubExprs() + cond.right
@@ -292,6 +300,7 @@ fun dsl.Program.rewriteWithConstants(env: Map<String, ConstVec>): dsl.Program =
     dsl.Program(statements.map { it.rewriteWithConstants(env) })
 
 fun dsl.Statement.rewriteWithConstants(env: Map<String, ConstVec>): dsl.Statement = when (this) {
+    is dsl.Declaration -> dsl.Declaration(id, expr?.rewriteWithConstants(env))
     is dsl.Assignment -> dsl.Assignment(id, expr.rewriteWithConstants(env))
     is dsl.PrintStmt -> dsl.PrintStmt(expr.rewriteWithConstants(env))
     is dsl.IfStmt -> dsl.IfStmt(
@@ -340,6 +349,7 @@ fun dsl.Expr.rewriteWithConstants(env: Map<String, ConstVec>): dsl.Expr = when (
 }
 
 fun dsl.Statement.usedVars(): Set<String> = when (this) {
+    is dsl.Declaration -> expr?.usedVars() ?: emptySet()
     is dsl.Assignment -> expr.usedVars()
     is dsl.PrintStmt -> expr.usedVars()
     is dsl.IfStmt -> cond.usedVars()
@@ -350,6 +360,7 @@ fun dsl.Statement.usedVars(): Set<String> = when (this) {
 fun dsl.Condition.usedVars(): Set<String> = left.usedVars().union(right.usedVars())
 
 fun dsl.Statement.definedVars(): Set<String> = when (this) {
+    is dsl.Declaration -> setOf(id)
     is dsl.Assignment -> setOf(id)
     is dsl.Phi -> setOf(id)
     else -> emptySet()

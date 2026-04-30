@@ -2,6 +2,7 @@ import dsl.Assignment
 import dsl.BinaryOp
 import dsl.CompOp
 import dsl.Condition
+import dsl.Declaration
 import dsl.IdRef
 import dsl.IfStmt
 import dsl.IndexOp
@@ -17,6 +18,7 @@ import dsl.WhileStmt
 
 fun prettyPrintAst(node: TensorAstNode, indent: String = ""): String = when (node) {
     is Program -> node.statements.joinToString("\n") { prettyPrintAst(it, indent) }
+    is Declaration -> if (node.expr != null) "${indent}let ${node.id} = ${prettyPrintAst(node.expr)}" else "${indent}let ${node.id}"
     is Assignment -> "$indent${node.id} = ${prettyPrintAst(node.expr)}"
     is PrintStmt -> "$indent print(${prettyPrintAst(node.expr)})"
     is NumberLiteral -> if (node.value == node.value.toLong().toDouble()) node.value.toLong().toString() else node.value.toString()

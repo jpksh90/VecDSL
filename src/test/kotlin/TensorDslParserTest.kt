@@ -33,9 +33,9 @@ class TensorDslParserTest {
     @Test
     fun testValidAssignmentAndTensorProduct() {
         val code = """
-            a = [1, 2, 3];
-            b = [4, 5, 6];
-            c = a # b;
+            let a = [1, 2, 3];
+            let b = [4, 5, 6];
+            let c = a # b;
             print(c);
         """.trimIndent()
         assertDoesNotThrow { parse(code) }
@@ -43,36 +43,64 @@ class TensorDslParserTest {
 
     @Test
     fun testValidAdditionAndPrint() {
-        val code = "x = [1, 2] + [3, 4]; print(x);"
+        val code = "let x = [1, 2] + [3, 4]; print(x);"
         assertDoesNotThrow { parse(code) }
     }
 
     @Test
     fun testValidUnaryAndTensor() {
-        val code = "z = -([1, 2, 3] # [4, 5, 6]); print(z);"
+        val code = "let z = -([1, 2, 3] # [4, 5, 6]); print(z);"
         assertDoesNotThrow { parse(code) }
     }
 
     @Test
     fun testPostfixOperations() {
         val code = """
-            v = [1, 2, 3];
-            v_len = v->len;
-            t = v->tpos;
-            d = v->dim;
-            first = v->0;
-            second = v->1;
+            let v = [1, 2, 3];
+            let v_len = v->len;
+            let t = v->tpos;
+            let d = v->dim;
+            let first = v->0;
+            let second = v->1;
             print(first);
         """.trimIndent()
         assertDoesNotThrow { parse(code) }
     }
 
     @Test
-    fun testRepeatedVariableDefinitionIsRejectedDuringTreeValidation() {
+    fun testRedeclarationIsRejectedDuringSemanticCheck() {
         val code = """
-            a = [1, 2, 3];
-            b = a;
-            a = b;
+            let a = [1, 2, 3];
+            let b = a;
+            let a = b;
+        """.trimIndent()
+
+        val lexer = TensorDslLexer(CharStreams.fromString(code))
+        val tokens = CommonTokenStream(lexer)
+        val parser = TensorDslParser(tokens)
+
+        assertNull(TensorAstBuilder.fromProgram(parser.program()))
+    }
+
+    @Test
+    fun testUndeclaredVariableUseIsRejectedDuringSemanticCheck() {
+        val code = """
+            let a = b;
+            print(a);
+        """.trimIndent()
+
+        val lexer = TensorDslLexer(CharStreams.fromString(code))
+        val tokens = CommonTokenStream(lexer)
+        val parser = TensorDslParser(tokens)
+
+        assertNull(TensorAstBuilder.fromProgram(parser.program()))
+    }
+
+    @Test
+    fun testAssignmentBeforeDeclarationIsRejectedDuringSemanticCheck() {
+        val code = """
+            a = 1;
+            print(a);
         """.trimIndent()
 
         val lexer = TensorDslLexer(CharStreams.fromString(code))

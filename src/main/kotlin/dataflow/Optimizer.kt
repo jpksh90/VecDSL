@@ -40,6 +40,10 @@ class CommonSubexpressionEliminator(val program: Program) {
 
     private fun processStatement(stmt: Statement, available: Set<Expr>, newStatements: MutableList<Statement>): Statement {
         return when (stmt) {
+            is Declaration -> {
+                val newExpr = stmt.expr?.let { replaceSubExprs(it, available, newStatements) }
+                Declaration(stmt.id, newExpr)
+            }
             is Assignment -> {
                 val newExpr = replaceSubExprs(stmt.expr, available, newStatements)
                 Assignment(stmt.id, newExpr)
@@ -117,6 +121,7 @@ class ConstantFolder(val program: Program) {
         val env = stmtToInState[stmt] ?: emptyMap()
         
         return when (stmt) {
+            is Declaration -> Declaration(stmt.id, stmt.expr?.let { foldExpr(it, env) })
             is Assignment -> Assignment(stmt.id, foldExpr(stmt.expr, env))
             is PrintStmt -> PrintStmt(foldExpr(stmt.expr, env))
             is IfStmt -> {
@@ -220,15 +225,22 @@ class DeadCodeEliminator(val program: Program) {
         // For simplicity, let's just do top-level for now
         val newStmts = mutableListOf<Statement>()
         program.statements.forEachIndexed { i, stmt ->
-            if (stmt is Assignment) {
-                // If variable is not live after this assignment, and it has no side effects (all our assignments are side-effect free)
-                if (i + 1 < liveness.size && !liveness[i].liveVars.contains(stmt.id)) {
-                    // Skip assignment
-                } else {
-                    newStmts.add(stmt)
+            when (stmt) {
+                is Assignment -> {
+                    // If variable is not live after this assignment, and it has no side effects
+                    if (i + 1 < liveness.size && !liveness[i].liveVars.contains(stmt.id)) {
+                        // Skip assignment
+                    } else {
+                        newStmts.add(stmt)
+                    }
                 }
-            } else {
-                newStmts.add(stmt)
+                is Declaration -> {
+                    // Preserve bare declarations, but drop dead initialized declarations.
+                    if (stmt.expr == null || i + 1 >= liveness.size || liveness[i].liveVars.contains(stmt.id)) {
+                        newStmts.add(stmt)
+                    }
+                }
+                else -> newStmts.add(stmt)
             }
         }
         return Program(newStmts)

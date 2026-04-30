@@ -10,49 +10,23 @@ object TensorAstBuilder {
     }
 
     fun fromProgramChecked(ctx: TensorDslParser.ProgramContext): Program? {
-        if (!validateParseTree(ctx)) {
-            return null
-        }
         val ast = Program(ctx.statement().map { fromStatement(it) })
         return checkVariableDeclarations(ast)
     }
 
-    fun validateParseTree(ctx: TensorDslParser.ProgramContext): Boolean {
-        val declared = mutableSetOf<String>()
-
-        fun checkStatement(statementCtx: TensorDslParser.StatementContext): Boolean = when {
-            statementCtx.assignment() != null -> {
-                val assignment = statementCtx.assignment()
-                val id = assignment.ID().text
-                if (id in declared) {
-                    println("Error: Variable '$id' redefined. Non-repetition rule violated.")
-                    false
-                } else {
-                    declared.add(id)
-                    true
-                }
-            }
-            statementCtx.printStmt() != null -> true
-            statementCtx.ifStmt() != null -> {
-                val ifStmt = statementCtx.ifStmt()
-                ifStmt.statement().all { checkStatement(it) }
-            }
-            statementCtx.whileStmt() != null -> {
-                val whileStmt = statementCtx.whileStmt()
-                whileStmt.statement().all { checkStatement(it) }
-            }
-            else -> false
-        }
-
-        return ctx.statement().all { checkStatement(it) }
-    }
-
     private fun fromStatement(ctx: TensorDslParser.StatementContext): Statement = when {
+        ctx.declaration() != null -> fromDeclaration(ctx.declaration())
         ctx.assignment() != null -> fromAssignment(ctx.assignment())
         ctx.printStmt() != null -> fromPrintStmt(ctx.printStmt())
         ctx.ifStmt() != null -> fromIfStmt(ctx.ifStmt())
         ctx.whileStmt() != null -> fromWhileStmt(ctx.whileStmt())
         else -> error("Unknown statement: ${ctx.text}")
+    }
+
+    private fun fromDeclaration(ctx: TensorDslParser.DeclarationContext): Declaration {
+        val id = ctx.ID().text
+        val expr = ctx.expr()?.let { fromExpr(it) }
+        return Declaration(id, expr)
     }
 
     private fun fromAssignment(ctx: TensorDslParser.AssignmentContext): Assignment {
@@ -212,14 +186,22 @@ object TensorAstBuilder {
             checkExpr(condition.left) && checkExpr(condition.right)
 
         fun checkStmt(stmt: Statement): Boolean = when (stmt) {
-            is Assignment -> {
+            is Declaration -> {
                 if (declared.contains(stmt.id)) {
-                    println("Error: Variable '${stmt.id}' redefined. Non-repetition rule violated.")
+                    println("Error: Variable '${stmt.id}' redeclared.")
                     false
                 } else {
-                    val ok = checkExpr(stmt.expr)
+                    val ok = stmt.expr?.let { checkExpr(it) } ?: true
                     declared.add(stmt.id)
                     ok
+                }
+            }
+            is Assignment -> {
+                if (!declared.contains(stmt.id)) {
+                    println("Error: Variable '${stmt.id}' assigned before declaration.")
+                    false
+                } else {
+                    checkExpr(stmt.expr)
                 }
             }
             is PrintStmt -> checkExpr(stmt.expr)

@@ -4,6 +4,7 @@ package dsl
 sealed class TensorAstNode
 
 sealed class Statement : TensorAstNode()
+data class Declaration(val id: String, val expr: Expr?) : Statement()
 data class Assignment(val id: String, val expr: Expr) : Statement()
 data class PrintStmt(val expr: Expr) : Statement()
 data class IfStmt(val cond: Condition, val thenBranch: List<Statement>, val elseBranch: List<Statement>?) : Statement()
