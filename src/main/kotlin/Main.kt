@@ -28,7 +28,6 @@ fun main(args: Array<String>) {
         println("Failed to build AST")
         return
     }
-    println(prettyPrintAst(ast))
 
     // --- Optionally dump CFG to dot file ---
     val dumpIdx = args.indexOf("--dump-cfg")
@@ -45,6 +44,7 @@ fun main(args: Array<String>) {
         println("Optimization failed: ${e.message}")
         ast
     }
+    println(prettyPrintAst(optimizedAst))
 
     // --- Armadillo C++ code generation ---
     val outputCpp = if (args.size > 1 && args[1] != "--dump-cfg") args[1] else if (args.size > 3 && args[3] != "--dump-cfg") args[3] else "armadillo_out.cpp"
